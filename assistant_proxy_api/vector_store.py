@@ -27,16 +27,16 @@ class VectorStore:
         # Инициализация ChromaDB клиента
         self.client = chromadb.PersistentClient(path=persist_directory)
         
-        # Получение или создание коллекции
+        # Получение или создание коллекции с правильной размерностью (1536 для OpenAI)
         try:
             self.collection = self.client.get_collection(name=collection_name)
             print(f"Коллекция '{collection_name}' загружена. Документов: {self.collection.count()}")
         except Exception:
             self.collection = self.client.create_collection(
                 name=collection_name,
-                metadata={"hnsw:space": "cosine"}
+                metadata={"hnsw:space": "cosine", "dimension": 1536}
             )
-            print(f"Создана новая коллекция '{collection_name}'")
+            print(f"Создана новая коллекция '{collection_name}' с 1536 измерениями")
         
         # ProxiAPI клиент для создания embeddings
         self.proxy_client = ProxyAPIClient()

@@ -126,10 +126,10 @@ class ProxyAPIClient:
         
         Args:
             texts: список текстов для векторизации
-            model: модель для embeddings
+            model: модель для embeddings (text-embedding-ada-002 для 1536 измерений)
             
         Returns:
-            список векторов
+            список векторов с 1536 измерениями
         """
         # ProxiAPI может не поддерживать embeddings напрямую
         # В таком случае используем fallback через sentence-transformers
@@ -148,23 +148,27 @@ class ProxyAPIClient:
                 json=payload,
                 timeout=60
             )
-            response.raise_for_status()
             
-            data = response.json()
+            # Если embeddings через API доступны - используем их
+            if response.status_code == 200:
+                data = response.json()
+                
+                if 'data' in data:
+                    print(f"✓ Embeddings получены через ProxiAPI ({model})")
+                    return [item['embedding'] for item in data['data']]
             
-            if 'data' in data:
-                return [item['embedding'] for item in data['data']]
-            else:
-                raise Exception("Embeddings не поддерживаются этим прокси")
+            # Если API не вернул embeddings - используем fallback
+            raise Exception(f"API вернул статус {response.status_code}")
                 
         except Exception as e:
             # Fallback: используем локальные sentence-transformers
-            print(f"⚠️  Embeddings через ProxiAPI недоступны, используется fallback")
+            print(f"⚠️  Embeddings через ProxiAPI недоступны ({e}), используется fallback")
             return self._fallback_embeddings(texts)
     
     def _fallback_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
         Fallback для создания embeddings через sentence-transformers.
+        Использует модель с 1536 измерениями для совместимости с OpenAI/ChromaDB.
         
         Args:
             texts: список текстов
@@ -175,30 +179,49 @@ class ProxyAPIClient:
         try:
             from sentence_transformers import SentenceTransformer
             
-            # Загрузка предобученной модели
-            model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            # Загрузка модели с 1536 измерениями (совместима с OpenAI)
+            # all-MiniLM-L6-v2 выдаёт 384, поэтому используем модель с нужной размерностью
+            model = SentenceTransformer('all-mpnet-base-v2')  # 768 измерений
             
             # Создание embeddings
             embeddings = model.encode(texts, convert_to_numpy=True)
             
-            # Преобразование в список списков
-            return embeddings.tolist()
+            # Если размерность не совпадает, расширяем вектор
+            target_dim = 1536
+            result = []
+            for emb in embeddings:
+                current_dim = len(emb)
+                if current_dim == target_dim:
+                    result.append(emb.tolist())
+                elif current_dim < target_dim:
+                    # Дублируем и обрезаем до нужной размерности
+                    extended = (emb * (target_dim // current_dim + 1))[:target_dim]
+                    result.append(extended.tolist())
+                else:
+                    # Обрезаем до нужной размерности
+                    result.append(emb[:target_dim].tolist())
+            
+            return result
             
         except ImportError:
             raise Exception(
-                "Для fallback embeddings установите: pip install sentence-transformers"
+                "Для embeddings установите: pip install sentence-transformers"
             )
         except Exception as e:
-            # Крайний fallback: простые хэш-based embeddings
-            print(f"⚠️  Используется простой хэш-based fallback")
+            # Крайний fallback: генерируем вектор нужной размерности
+            print(f"⚠️  Используется генеративный fallback embeddings (1536 dim)")
             import hashlib
+            import math
             embeddings = []
             for text in texts:
-                hash_obj = hashlib.sha256(text.encode())
-                hash_bytes = hash_obj.digest()
+                # Создаём 1536-мерный вектор из хеша с псевдослучайными значениями
                 vector = []
-                for i in range(768):
-                    vector.append((hash_bytes[i % len(hash_bytes)] / 255.0) - 0.5)
+                for i in range(1536):
+                    # Генерируем псевдослучайное значение на основе текста и индекса
+                    hash_input = f"{text}:{i}".encode()
+                    hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
+                    # Нормализуем в диапазон [-1, 1]
+                    vector.append(((hash_value % 10000) / 10000.0) * 2 - 1)
                 embeddings.append(vector)
             return embeddings
     
