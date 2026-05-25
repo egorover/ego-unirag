@@ -22,7 +22,7 @@ class ProxyAPIClient:
         Инициализация ProxiAPI клиента.
         
         Args:
-            api_url: URL ProxiAPI прокси-сервера
+            api_url: URL ProxiAPI прокси-сервера (базовый URL без /chat/completions)
             api_key: API ключ для аутентификации
             default_model: модель по умолчанию
         """
@@ -33,10 +33,15 @@ class ProxyAPIClient:
         if not self.api_url:
             raise ValueError("PROXI_API_URL не установлен")
         
+        # Нормализация URL: удаляем /chat/completions если есть, оставляем базовый URL
+        self.base_url = self.api_url.rstrip('/')
+        if self.base_url.endswith('/chat/completions'):
+            self.base_url = self.base_url.replace('/chat/completions', '')
+        
         # Если API ключ не указан, работаем без него (публичный прокси)
         self.use_auth = self.api_key is not None
         
-        print(f"✓ ProxiAPI клиент инициализирован: {self.api_url}")
+        print(f"✓ ProxiAPI клиент инициализирован: {self.base_url}")
         print(f"  Модель по умолчанию: {self.default_model}")
         print(f"  Авторизация: {'включена' if self.use_auth else 'отключена'}")
     
@@ -80,9 +85,12 @@ class ProxyAPIClient:
             "max_tokens": max_tokens
         }
         
+        # Формируем полный URL для chat completions
+        chat_url = f"{self.base_url}/chat/completions"
+        
         try:
             response = requests.post(
-                self.api_url,
+                chat_url,
                 headers=self._get_headers(),
                 json=payload,
                 timeout=30
@@ -106,7 +114,7 @@ class ProxyAPIClient:
         except requests.exceptions.ConnectionError:
             raise Exception("Не удалось подключиться к ProxiAPI")
         except Exception as e:
-            raise Exception(f"Ошибка запроса к ProxiAPI: {e}")
+            raise Exception(f"Ошибка запроса к ProxiAPI ({chat_url}): {e}")
     
     def get_embeddings(
         self, 
@@ -131,8 +139,11 @@ class ProxyAPIClient:
                 "input": texts
             }
             
+            # Формируем полный URL для embeddings
+            embeddings_url = f"{self.base_url}/embeddings"
+            
             response = requests.post(
-                f"{self.api_url}/embeddings",
+                embeddings_url,
                 headers=self._get_headers(),
                 json=payload,
                 timeout=60
@@ -199,8 +210,11 @@ class ProxyAPIClient:
             список моделей
         """
         try:
+            # Формируем полный URL для моделей
+            models_url = f"{self.base_url}/models"
+            
             response = requests.get(
-                f"{self.api_url}/models",
+                models_url,
                 headers=self._get_headers(),
                 timeout=10
             )
