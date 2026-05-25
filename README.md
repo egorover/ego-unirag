@@ -52,7 +52,8 @@
 │  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
 │  │   Response   │ ←── │   LLM        │ ←── │  Prompt      │   │
 │  │   Output     │     │  (GigaChat/  │     │  Builder     │   │
-│  └──────────────┘     │   OpenAI)    │     └──────────────┘   │
+│  └──────────────┘     │   OpenAI/    │     └──────────────┘   │
+│                       │   ProxiAPI)  │                         │
 │                       └──────────────┘                         │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -64,6 +65,7 @@
 |-------|----------|--------------|
 | **GigaChat Mode** | Работа через API Сбера | GigaChat |
 | **API Mode** | Работа через OpenAI API | OpenAI (GPT) |
+| **ProxiAPI Mode** | Работа через ProxiAPI (РФ) | ProxiAPI (GPT/Claude) |
 
 ---
 
@@ -84,6 +86,11 @@
 - **Для API режима**:
   - Ключ OpenAI API
   - `OPENAI_API_KEY` — API ключ
+
+- **Для ProxiAPI режима**:
+  - Доступ к ProxiAPI прокси-серверу
+  - `PROXI_API_URL` — URL прокси-сервера
+  - `PROXI_API_KEY` — API ключ (опционально)
 
 ---
 
@@ -134,9 +141,12 @@ project/
 ├── assistant_giga/
 │   └── data/
 │       └── docs.txt          # Документы для GigaChat режима
-└── assistant_api/
+├── assistant_api/
+│   └── data/
+│       └── docs.txt          # Документы для API режима
+└── assistant_proxy_api/
     └── data/
-        └── docs.txt          # Документы для API режима
+        └── docs.txt          # Документы для ProxiAPI режима
 ```
 
 Формат файла: простой текст, разделённый на абзацы (`\n\n`).
@@ -171,6 +181,19 @@ python app.py
 python rag_pipeline.py
 ```
 
+### Режим ProxiAPI
+
+```bash
+# Перейдите в директорию assistant_proxy_api
+cd assistant_proxy_api
+
+# Запуск консольного ассистента
+python app.py
+
+# Или запуск pipeline напрямую
+python rag_pipeline.py
+```
+
 ### Команды в интерактивном режиме:
 
 | Команда | Описание |
@@ -195,6 +218,7 @@ python rag_pipeline.py
 **Файлы:**
 - `assistant_giga/rag_pipeline.py` — GigaChat режим
 - `assistant_api/rag_pipeline.py` — API режим
+- `assistant_proxy_api/rag_pipeline.py` — ProxiAPI режим
 
 ### Vector Store
 
@@ -207,6 +231,7 @@ python rag_pipeline.py
 **Файлы:**
 - `assistant_giga/vector_store.py`
 - `assistant_api/vector_store.py`
+- `assistant_proxy_api/vector_store.py`
 
 ### Cache System
 
@@ -219,6 +244,7 @@ python rag_pipeline.py
 **Файлы:**
 - `assistant_giga/cache.py`
 - `assistant_api/cache.py`
+- `assistant_proxy_api/cache.py`
 
 ### LLM Clients
 
@@ -226,6 +252,7 @@ python rag_pipeline.py
 
 - `GigaChatClient` — работа с API Сбера (авторизация, OAuth, embeddings)
 - `OpenAI` — стандартный клиент для работы с GPT
+- `ProxyAPIClient` — работа с ProxiAPI (поддержка GPT/Claude через российский прокси)
 
 ---
 
@@ -278,6 +305,15 @@ Ego-UniRAG/
 │   ├── cache.py                  # Система кэширования
 │   ├── evaluate_ragas.py         # Оценка через RAGAS
 │   ├── test.txt                  # Тестовый файл
+│   └── data/
+│       └── docs.txt              # Документы для RAG
+│
+├── assistant_proxy_api/          # ProxiAPI режим (РФ)
+│   ├── app.py                    # Консольный интерфейс
+│   ├── rag_pipeline.py           # Основной RAG pipeline
+│   ├── vector_store.py           # Векторное хранилище
+│   ├── cache.py                  # Система кэширования
+│   ├── proxy_client.py           # Клиент ProxiAPI
 │   └── data/
 │       └── docs.txt              # Документы для RAG
 │
