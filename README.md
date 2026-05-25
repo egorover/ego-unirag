@@ -69,7 +69,7 @@
 
 ## Требования
 
-- **Python**: 3.11
+- **Python**: 3.11+ (рекомендуется 3.13)
 - **Операционная система**: Windows / Linux / macOS
 - **Память**: Минимум 2 GB RAM
 - **Интернет**: Для работы с внешними API
@@ -96,53 +96,47 @@ git clone <repository-url>
 cd <project-directory>
 ```
 
-### 2. Создание виртуального окружения
+### 2. Создание и активация виртуального окружения
 
 ```bash
 # Windows
 python -m venv venv
-venv\Scripts\activate
+.\venv\Scripts\activate
 
 # Linux/macOS
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Установка зависимостей
+### 3. Настройка окружения
+
+```bash
+# Скопируйте пример файла окружения
+cp .env.example .env
+
+# Отредактируйте .env и добавьте ваши ключи
+# Windows (PowerShell): notepad .env
+# Linux/macOS: nano .env
+```
+
+### 4. Установка зависимостей
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Установка ChromaDB (если требуется)
-
-```bash
-pip install chromadb>=0.4.18
-```
-
----
-
-## Настройка окружения
-
-### 1. Создайте файл `.env` в корне проекта:
-
-```bash
-# Для GigaChat режима
-GIGACHAT_AUTH_KEY=your_auth_key_here
-GIGACHAT_RQUID=your_rq_uid_here
-
-# Для API режима
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-### 2. Подготовка документов
+### 5. Подготовка данных
 
 Разместите текстовые документы для RAG в директории `data/`:
 
 ```
 project/
-├── data/
-│   └── docs.txt          # Основной файл с документами
+├── assistant_giga/
+│   └── data/
+│       └── docs.txt          # Документы для GigaChat режима
+└── assistant_api/
+    └── data/
+        └── docs.txt          # Документы для API режима
 ```
 
 Формат файла: простой текст, разделённый на абзацы (`\n\n`).
