@@ -7,6 +7,7 @@ import requests
 import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from pathlib import Path
 
 
 class ProxyAPIClient:
@@ -26,6 +27,15 @@ class ProxyAPIClient:
             api_key: API ключ для аутентификации
             default_model: модель по умолчанию
         """
+        # Загрузка .env при инициализации
+        try:
+            from dotenv import load_dotenv
+            env_path = Path(__file__).parent.parent / '.env'
+            if env_path.exists():
+                load_dotenv(env_path)
+        except:
+            pass
+        
         self.api_url = api_url or os.getenv("PROXI_API_URL")
         self.api_key = api_key or os.getenv("PROXI_API_KEY")
         self.default_model = default_model
@@ -41,9 +51,9 @@ class ProxyAPIClient:
         # Если API ключ не указан, работаем без него (публичный прокси)
         self.use_auth = self.api_key is not None
         
-        print(f"✓ ProxiAPI клиент инициализирован: {self.base_url}")
-        print(f"  Модель по умолчанию: {self.default_model}")
-        print(f"  Авторизация: {'включена' if self.use_auth else 'отключена'}")
+        print(f"[OK] ProxiAPI klient inicializirovan: {self.base_url}")
+        print(f"  Model' po umolchaniyu: {self.default_model}")
+        print(f"  Avtorizaciya: {'vklyuchena' if self.use_auth else 'otklyuchena'}")
     
     def _get_headers(self) -> Dict[str, str]:
         """Получение заголовков для запросов."""
@@ -154,7 +164,7 @@ class ProxyAPIClient:
                 data = response.json()
                 
                 if 'data' in data:
-                    print(f"✓ Embeddings получены через ProxiAPI ({model})")
+                    print(f"[OK] Embeddings polucheni cherez ProxiAPI ({model})")
                     return [item['embedding'] for item in data['data']]
             
             # Если API не вернул embeddings - используем fallback
@@ -162,7 +172,7 @@ class ProxyAPIClient:
                 
         except Exception as e:
             # Fallback: используем локальные sentence-transformers
-            print(f"⚠️  Embeddings через ProxiAPI недоступны ({e}), используется fallback")
+            print(f"[WARN] Embeddings cherez ProxiAPI nedostupny, ispol'zuetsya fallback")
             return self._fallback_embeddings(texts)
     
     def _fallback_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -209,7 +219,7 @@ class ProxyAPIClient:
             )
         except Exception as e:
             # Крайний fallback: генерируем вектор нужной размерности
-            print(f"⚠️  Используется генеративный fallback embeddings (1536 dim)")
+            print(f"[WARN] Ispol'zuetsya generativnyi fallback embeddings (1536 dim)")
             import hashlib
             import math
             embeddings = []
@@ -253,7 +263,7 @@ class ProxyAPIClient:
                 return []
                 
         except Exception as e:
-            print(f"⚠️  Не удалось получить список моделей: {e}")
+            print(f"[WARN] Ne udalos' poluchit' spisok modelei: {e}")
             # Возвращаем список поддерживаемых моделей по умолчанию
             return [
                 {"id": "gpt-4o-mini", "name": "GPT-4o Mini"},
@@ -296,10 +306,10 @@ if __name__ == "__main__":
         # Тест embeddings
         print("\n=== Тест embeddings ===")
         embeddings = client.get_embeddings(["Тестовый текст"])
-        print(f"Размерность вектора: {len(embeddings[0])}")
+        print(f"Razmernost' vektora: {len(embeddings[0])}")
         
-        print("\n✓ Все тесты пройдены")
+        print("\n[OK] vse testy prochdeny")
         
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"[ERROR] Oshibka: {e}")
         sys.exit(1)
