@@ -9,11 +9,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from rag_pipeline import RAGPipeline
 
-# Установить кодировку вывода в UTF-8 для Windows
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
 # Загрузка переменных окружения из .env файла
 # Ищем .env в корне проекта (на уровень выше)
 env_path = Path(__file__).parent.parent / '.env'
@@ -46,29 +41,29 @@ def print_response(result: dict):
     Args:
         result: словарь с результатом запроса
     """
-    print(f"\n{'─'*60}")
-    print(f"📝 Вопрос: {result['query']}")
-    print(f"{'─'*60}")
+    print(f"\n{'='*60}")
+    print(f"Вопрос: {result['query']}")
+    print(f"{'='*60}")
     
     # Индикатор источника ответа
     if result['from_cache']:
-        print("💾 Источник: КЕШ")
+        print("Источник: КЕШ")
         if 'cached_at' in result:
             print(f"   Сохранено: {result['cached_at']}")
     else:
-        print(f"🌐 Источник: ProxiAPI ({result.get('model', 'LLM')})")
+        print(f"Источник: ProxiAPI ({result.get('model', 'LLM')})")
         print(f"   Использовано документов: {len(result.get('context_docs', []))}")
     
-    print(f"\n💬 Ответ:\n{result['answer']}")
+    print(f"\nОтвет:\n{result['answer']}")
     
     # Показать контекст (опционально)
     if not result['from_cache'] and result.get('context_docs'):
-        print(f"\n📚 Использованный контекст:")
+        print(f"\nИспользованный контекст:")
         for i, doc in enumerate(result['context_docs'][:2], 1):  # Показываем только 2 первых
             preview = doc['text'][:150] + "..." if len(doc['text']) > 150 else doc['text']
             print(f"   {i}. {preview}")
     
-    print(f"{'─'*60}\n")
+    print(f"{'='*60}\n")
 
 
 def print_stats(pipeline: RAGPipeline):
@@ -80,16 +75,16 @@ def print_stats(pipeline: RAGPipeline):
     """
     stats = pipeline.get_stats()
     
-    print(f"\n{'═'*60}")
-    print("📊 СТАТИСТИКА СИСТЕМЫ")
-    print(f"{'═'*60}")
+    print(f"\n{'='*60}")
+    print("СТАТИСТИКА СИСТЕМЫ")
+    print(f"{'='*60}")
     
-    print("\n🗄️  Векторное хранилище:")
+    print("\nВекторное хранилище:")
     print(f"   Коллекция: {stats['vector_store']['name']}")
     print(f"   Документов: {stats['vector_store']['count']}")
     print(f"   Директория: {stats['vector_store']['persist_directory']}")
     
-    print("\n💾 Кеш:")
+    print("\nКеш:")
     print(f"   Записей: {stats['cache']['total_entries']}")
     print(f"   Размер БД: {stats['cache']['db_size_mb']:.2f} MB")
     if stats['cache']['oldest_entry']:
@@ -97,9 +92,9 @@ def print_stats(pipeline: RAGPipeline):
     if stats['cache']['newest_entry']:
         print(f"   Последняя запись: {stats['cache']['newest_entry']}")
     
-    print(f"\n🤖 Модель: {stats['model']}")
-    print(f"🌐 Режим: {stats['mode']}")
-    print(f"{'═'*60}\n")
+    print(f"\nМодель: {stats['model']}")
+    print(f"Режим: {stats['mode']}")
+    print(f"{'='*60}\n")
 
 
 def main():
@@ -108,7 +103,7 @@ def main():
     
     # Проверка наличия API URL
     if not os.getenv("PROXI_API_URL"):
-        print("❌ Ошибка: переменная окружения PROXI_API_URL не установлена")
+        print("Ошибка: переменная окружения PROXI_API_URL не установлена")
         print("\nУстановите её следующим образом:")
         print("  Windows (PowerShell): $env:PROXI_API_URL='https://your-proxi-api-endpoint.com'")
         print("  Windows (CMD): set PROXI_API_URL=https://your-proxi-api-endpoint.com")
@@ -121,7 +116,7 @@ def main():
     
     try:
         # Инициализация RAG pipeline
-        print("🚀 Инициализация системы...\n")
+        print("Инициализация системы...\n")
         
         # Получение модели из окружения или используем default
         model = os.getenv("PROXI_API_MODEL", "gpt-4o-mini")
@@ -132,21 +127,21 @@ def main():
             data_file="data/docs.txt",
             model=model
         )
-        print("\n✅ Система готова к работе!\n")
+        print("\nСистема готова к работе!\n")
         
     except Exception as e:
-        print(f"❌ Ошибка инициализации: {e}")
+        print(f"Ошибка инициализации: {e}")
         sys.exit(1)
     
     # Основной цикл взаимодействия
     while True:
         try:
             # Получение запроса от пользователя
-            user_input = input("💭 Ваш вопрос: ").strip()
+            user_input = input("Ваш вопрос: ").strip()
             
             # Обработка специальных команд
             if user_input.lower() in ['exit', 'quit', 'q']:
-                print("\n👋 До свидания!")
+                print("\nДо свидания!")
                 break
             
             if user_input.lower() == 'stats':
@@ -154,14 +149,14 @@ def main():
                 continue
             
             if user_input.lower() == 'clear':
-                confirm = input("⚠️  Вы уверены, что хотите очистить кеш? (yes/no): ")
+                confirm = input("Вы уверены, что хотите очистить кеш? (yes/no): ")
                 if confirm.lower() in ['yes', 'y', 'да']:
                     pipeline.cache.clear()
-                    print("✅ Кеш очищен")
+                    print("Кеш очищен")
                 continue
             
             if not user_input:
-                print("⚠️  Пожалуйста, введите вопрос\n")
+                print("Пожалуйста, введите вопрос\n")
                 continue
             
             # Обработка запроса через RAG pipeline
@@ -171,10 +166,10 @@ def main():
             print_response(result)
             
         except KeyboardInterrupt:
-            print("\n\n👋 Прервано пользователем. До свидания!")
+            print("\n\nПрервано пользователем. До свидания!")
             break
         except Exception as e:
-            print(f"\n❌ Ошибка: {e}\n")
+            print(f"\nОшибка: {e}\n")
 
 
 if __name__ == "__main__":

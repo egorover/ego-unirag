@@ -10,11 +10,6 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
 
-# Установить кодировку вывода в UTF-8 для Windows
-if sys.platform == 'win32':
-    sys.stdout = open(sys.stdout.fileno(), 'w', encoding='utf-8', buffering=1)
-    sys.stderr = open(sys.stderr.fileno(), 'w', encoding='utf-8', buffering=1)
-
 
 class ProxyAPIClient:
     """Клиент для работы с ProxiAPI."""
