@@ -3,11 +3,17 @@
 Управляет запросами к ProxiAPI для доступа к зарубежным и локальным моделям.
 """
 
+import sys
 import requests
 import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
+
+# Установить кодировку вывода в UTF-8 для Windows
+if sys.platform == 'win32':
+    sys.stdout = open(sys.stdout.fileno(), 'w', encoding='utf-8', buffering=1)
+    sys.stderr = open(sys.stderr.fileno(), 'w', encoding='utf-8', buffering=1)
 
 
 class ProxyAPIClient:
@@ -51,9 +57,9 @@ class ProxyAPIClient:
         # Если API ключ не указан, работаем без него (публичный прокси)
         self.use_auth = self.api_key is not None
         
-        print(f"[OK] ProxiAPI klient inicializirovan: {self.base_url}")
-        print(f"  Model' po umolchaniyu: {self.default_model}")
-        print(f"  Avtorizaciya: {'vklyuchena' if self.use_auth else 'otklyuchena'}")
+        print(f"✓ ProxiAPI клиент инициализирован: {self.base_url}")
+        print(f"  Модель по умолчанию: {self.default_model}")
+        print(f"  Авторизация: {'включена' if self.use_auth else 'отключена'}")
     
     def _get_headers(self) -> Dict[str, str]:
         """Получение заголовков для запросов."""
@@ -164,7 +170,7 @@ class ProxyAPIClient:
                 data = response.json()
                 
                 if 'data' in data:
-                    print(f"[OK] Embeddings polucheni cherez ProxiAPI ({model})")
+                    print(f"✓ Embeddings получены через ProxiAPI ({model})")
                     return [item['embedding'] for item in data['data']]
             
             # Если API не вернул embeddings - используем fallback
@@ -172,7 +178,7 @@ class ProxyAPIClient:
                 
         except Exception as e:
             # Fallback: используем локальные sentence-transformers
-            print(f"[WARN] Embeddings cherez ProxiAPI nedostupny, ispol'zuetsya fallback")
+            print(f"⚠️  Embeddings через ProxiAPI недоступны, используется fallback")
             return self._fallback_embeddings(texts)
     
     def _fallback_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -219,7 +225,7 @@ class ProxyAPIClient:
             )
         except Exception as e:
             # Крайний fallback: генерируем вектор нужной размерности
-            print(f"[WARN] Ispol'zuetsya generativnyi fallback embeddings (1536 dim)")
+            print(f"⚠️  Используется генеративный fallback embeddings (1536 dim)")
             import hashlib
             import math
             embeddings = []
@@ -263,7 +269,7 @@ class ProxyAPIClient:
                 return []
                 
         except Exception as e:
-            print(f"[WARN] Ne udalos' poluchit' spisok modelei: {e}")
+            print(f"⚠️  Не удалось получить список моделей: {e}")
             # Возвращаем список поддерживаемых моделей по умолчанию
             return [
                 {"id": "gpt-4o-mini", "name": "GPT-4o Mini"},
@@ -306,10 +312,10 @@ if __name__ == "__main__":
         # Тест embeddings
         print("\n=== Тест embeddings ===")
         embeddings = client.get_embeddings(["Тестовый текст"])
-        print(f"Razmernost' vektora: {len(embeddings[0])}")
+        print(f"Размерность вектора: {len(embeddings[0])}")
         
-        print("\n[OK] vse testy prochdeny")
+        print("\n✓ Все тесты пройдены")
         
     except Exception as e:
-        print(f"[ERROR] Oshibka: {e}")
+        print(f"❌ Ошибка: {e}")
         sys.exit(1)

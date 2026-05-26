@@ -28,102 +28,102 @@ def print_banner():
     """Вывод приветственного баннера."""
     banner = """
 ========================================
-    RAG Assistent (ProxiAPI Mode)
+    RAG Ассистент (ProxiAPI Mode)
     Retrieval-Augmented Generation
     через ProxiAPI (RU)
 ========================================
     """
     print(banner)
-    print("Vvedite 'exit' ili 'quit' dlya vychoda")
-    print("Vvedite 'stats' dlya prosmotra statistiki")
-    print("Vvedite 'clear' dlya ochistki kasha\n")
+    print("Введите 'exit' или 'quit' для выхода")
+    print("Введите 'stats' для просмотра статистики")
+    print("Введите 'clear' для очистки кеша\n")
 
 
 def print_response(result: dict):
     """
-    Formatirovannyi vyvod otveta.
+    Форматированный вывод ответа.
     
     Args:
-        result: slovar' s rezul'tatom zapроса
+        result: словарь с результатом запроса
     """
-    print(f"\n{'-'*60}")
-    print(f"Vopros: {result['query']}")
-    print(f"{'-'*60}")
+    print(f"\n{'─'*60}")
+    print(f"📝 Вопрос: {result['query']}")
+    print(f"{'─'*60}")
     
-    # Indikator istochnika otveta
+    # Индикатор источника ответа
     if result['from_cache']:
-        print("Istochnik: KESH")
+        print("💾 Источник: КЕШ")
         if 'cached_at' in result:
-            print(f"   Sohraneno: {result['cached_at']}")
+            print(f"   Сохранено: {result['cached_at']}")
     else:
-        print(f"Istochnik: ProxiAPI ({result.get('model', 'LLM')})")
-        print(f"   Ispolzovano dokumentov: {len(result.get('context_docs', []))}")
+        print(f"🌐 Источник: ProxiAPI ({result.get('model', 'LLM')})")
+        print(f"   Использовано документов: {len(result.get('context_docs', []))}")
     
-    print(f"\nOtvet:\n{result['answer']}")
+    print(f"\n💬 Ответ:\n{result['answer']}")
     
-    # Pokazat' kontekst (opcional'no)
+    # Показать контекст (опционально)
     if not result['from_cache'] and result.get('context_docs'):
-        print(f"\nIspolzovannyi kontekst:")
-        for i, doc in enumerate(result['context_docs'][:2], 1):  # Pokazyvaem tol'ko 2 pervyx
+        print(f"\n📚 Использованный контекст:")
+        for i, doc in enumerate(result['context_docs'][:2], 1):  # Показываем только 2 первых
             preview = doc['text'][:150] + "..." if len(doc['text']) > 150 else doc['text']
             print(f"   {i}. {preview}")
     
-    print(f"{'-'*60}\n")
+    print(f"{'─'*60}\n")
 
 
 def print_stats(pipeline: RAGPipeline):
     """
-    Vyvod statistiki sistemy.
+    Вывод статистики системы.
     
     Args:
-        pipeline: ekzempliar RAG pipeline
+        pipeline: экземпляр RAG pipeline
     """
     stats = pipeline.get_stats()
     
-    print(f"\n{'='*60}")
-    print("STATISTIKA SISTEMY")
-    print(f"{'='*60}")
+    print(f"\n{'═'*60}")
+    print("📊 СТАТИСТИКА СИСТЕМЫ")
+    print(f"{'═'*60}")
     
-    print("\nVektor'noe hranilishche:")
-    print(f"   Kolleciya: {stats['vector_store']['name']}")
-    print(f"   Dokumentov: {stats['vector_store']['count']}")
-    print(f"   Direktoriya: {stats['vector_store']['persist_directory']}")
+    print("\n🗄️  Векторное хранилище:")
+    print(f"   Коллекция: {stats['vector_store']['name']}")
+    print(f"   Документов: {stats['vector_store']['count']}")
+    print(f"   Директория: {stats['vector_store']['persist_directory']}")
     
-    print("\nKesh:")
-    print(f"   Zapisei: {stats['cache']['total_entries']}")
-    print(f"   Razmer BD: {stats['cache']['db_size_mb']:.2f} MB")
+    print("\n💾 Кеш:")
+    print(f"   Записей: {stats['cache']['total_entries']}")
+    print(f"   Размер БД: {stats['cache']['db_size_mb']:.2f} MB")
     if stats['cache']['oldest_entry']:
-        print(f"   Pervaya zapise: {stats['cache']['oldest_entry']}")
+        print(f"   Первая запись: {stats['cache']['oldest_entry']}")
     if stats['cache']['newest_entry']:
-        print(f"   Poslednyaya zapise: {stats['cache']['newest_entry']}")
+        print(f"   Последняя запись: {stats['cache']['newest_entry']}")
     
-    print(f"\nModel': {stats['model']}")
-    print(f"Rejim: {stats['mode']}")
-    print(f"{'='*60}\n")
+    print(f"\n🤖 Модель: {stats['model']}")
+    print(f"🌐 Режим: {stats['mode']}")
+    print(f"{'═'*60}\n")
 
 
 def main():
-    """Glavnaya funkciya prilozheniya."""
+    """Главная функция приложения."""
     print_banner()
     
-    # Proverka naliçiya API URL
+    # Проверка наличия API URL
     if not os.getenv("PROXI_API_URL"):
-        print("Oshibka: peremennaya okruzheniya PROXI_API_URL ne ustanovlena")
-        print("\nUstanovite ee sleduyushim obrazom:")
+        print("❌ Ошибка: переменная окружения PROXI_API_URL не установлена")
+        print("\nУстановите её следующим образом:")
         print("  Windows (PowerShell): $env:PROXI_API_URL='https://your-proxi-api-endpoint.com'")
         print("  Windows (CMD): set PROXI_API_URL=https://your-proxi-api-endpoint.com")
         print("  Linux/Mac: export PROXI_API_URL='https://your-proxi-api-endpoint.com'")
-        print("\nIli sozdayte fayl .env v korne proekta s soderzhimym:")
+        print("\nИли создайте файл .env в корне проекта с содержимым:")
         print("  PROXI_API_URL=https://your-proxi-api-endpoint.com")
-        print("\nOpcional'no (esli trebuetsya avtorizaciya):")
+        print("\nОпционально (если требуется авторизация):")
         print("  PROXI_API_KEY=your_api_key_here")
         sys.exit(1)
     
     try:
-        # Iнициализация RAG pipeline
-        print("Iнициализaciya sistemy...\n")
+        # Инициализация RAG pipeline
+        print("🚀 Инициализация системы...\n")
         
-        # Poluchenie modeli iz okruzheniya ili ispol'zuem default
+        # Получение модели из окружения или используем default
         model = os.getenv("PROXI_API_MODEL", "gpt-4o-mini")
         
         pipeline = RAGPipeline(
@@ -132,21 +132,21 @@ def main():
             data_file="data/docs.txt",
             model=model
         )
-        print("\nSistema gotova k rabote!\n")
+        print("\n✅ Система готова к работе!\n")
         
     except Exception as e:
-        print(f"Oshibka iнициализации: {e}")
+        print(f"❌ Ошибка инициализации: {e}")
         sys.exit(1)
     
-    # Osnovnoi tsikl vzaimodeistviya
+    # Основной цикл взаимодействия
     while True:
         try:
-            # Poluchenie zaprosa ot pol'zovatelya
-            user_input = input("Vash vopros: ").strip()
+            # Получение запроса от пользователя
+            user_input = input("💭 Ваш вопрос: ").strip()
             
-            # Obrabotka special'nykh komand
+            # Обработка специальных команд
             if user_input.lower() in ['exit', 'quit', 'q']:
-                print("\nDo svidaniya!")
+                print("\n👋 До свидания!")
                 break
             
             if user_input.lower() == 'stats':
@@ -154,27 +154,27 @@ def main():
                 continue
             
             if user_input.lower() == 'clear':
-                confirm = input("Vy uveren', cto xotite ochistit' kesh? (yes/no): ")
-                if confirm.lower() in ['yes', 'y', 'da']:
+                confirm = input("⚠️  Вы уверены, что хотите очистить кеш? (yes/no): ")
+                if confirm.lower() in ['yes', 'y', 'да']:
                     pipeline.cache.clear()
-                    print("Kesh ochishchen")
+                    print("✅ Кеш очищен")
                 continue
             
             if not user_input:
-                print("Prosim, vvedite vopros\n")
+                print("⚠️  Пожалуйста, введите вопрос\n")
                 continue
             
-            # Obrabotka zaprosa cherez RAG pipeline
+            # Обработка запроса через RAG pipeline
             result = pipeline.query(user_input)
             
-            # Vyvod rezul'tata
+            # Вывод результата
             print_response(result)
             
         except KeyboardInterrupt:
-            print("\n\nPrervano pol'zovatelem. Do svidaniya!")
+            print("\n\n👋 Прервано пользователем. До свидания!")
             break
         except Exception as e:
-            print(f"\nOshibka: {e}\n")
+            print(f"\n❌ Ошибка: {e}\n")
 
 
 if __name__ == "__main__":
