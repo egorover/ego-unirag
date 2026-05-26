@@ -4,9 +4,15 @@
 
 import sys
 import os
+import io
 from pathlib import Path
 from dotenv import load_dotenv
 from rag_pipeline import RAGPipeline
+
+# Установить кодировку вывода в UTF-8 для Windows
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Загрузка переменных окружения из .env файла
 # Ищем .env в корне проекта (на уровень выше)
@@ -21,103 +27,103 @@ else:
 def print_banner():
     """Вывод приветственного баннера."""
     banner = """
-╔══════════════════════════════════════════════════════════╗
-║         RAG Ассистент (ProxiAPI Mode)                   ║
-║  Retrieval-Augmented Generation через ProxiAPI          ║
-║  Российский провайдер LLM без VPN                       ║
-╚══════════════════════════════════════════════════════════╝
+========================================
+    RAG Assistent (ProxiAPI Mode)
+    Retrieval-Augmented Generation
+    через ProxiAPI (RU)
+========================================
     """
     print(banner)
-    print("Введите 'exit' или 'quit' для выхода")
-    print("Введите 'stats' для просмотра статистики")
-    print("Введите 'clear' для очистки кеша\n")
+    print("Vvedite 'exit' ili 'quit' dlya vychoda")
+    print("Vvedite 'stats' dlya prosmotra statistiki")
+    print("Vvedite 'clear' dlya ochistki kasha\n")
 
 
 def print_response(result: dict):
     """
-    Форматированный вывод ответа.
+    Formatirovannyi vyvod otveta.
     
     Args:
-        result: словарь с результатом запроса
+        result: slovar' s rezul'tatom zapроса
     """
-    print(f"\n{'─'*60}")
-    print(f"📝 Вопрос: {result['query']}")
-    print(f"{'─'*60}")
+    print(f"\n{'-'*60}")
+    print(f"Vopros: {result['query']}")
+    print(f"{'-'*60}")
     
-    # Индикатор источника ответа
+    # Indikator istochnika otveta
     if result['from_cache']:
-        print("💾 Источник: КЕШ")
+        print("Istochnik: KESH")
         if 'cached_at' in result:
-            print(f"   Сохранено: {result['cached_at']}")
+            print(f"   Sohraneno: {result['cached_at']}")
     else:
-        print(f"🌐 Источник: ProxiAPI ({result.get('model', 'LLM')})")
-        print(f"   Использовано документов: {len(result.get('context_docs', []))}")
+        print(f"Istochnik: ProxiAPI ({result.get('model', 'LLM')})")
+        print(f"   Ispolzovano dokumentov: {len(result.get('context_docs', []))}")
     
-    print(f"\n💬 Ответ:\n{result['answer']}")
+    print(f"\nOtvet:\n{result['answer']}")
     
-    # Показать контекст (опционально)
+    # Pokazat' kontekst (opcional'no)
     if not result['from_cache'] and result.get('context_docs'):
-        print(f"\n📚 Использованный контекст:")
-        for i, doc in enumerate(result['context_docs'][:2], 1):  # Показываем только 2 первых
+        print(f"\nIspolzovannyi kontekst:")
+        for i, doc in enumerate(result['context_docs'][:2], 1):  # Pokazyvaem tol'ko 2 pervyx
             preview = doc['text'][:150] + "..." if len(doc['text']) > 150 else doc['text']
             print(f"   {i}. {preview}")
     
-    print(f"{'─'*60}\n")
+    print(f"{'-'*60}\n")
 
 
 def print_stats(pipeline: RAGPipeline):
     """
-    Вывод статистики системы.
+    Vyvod statistiki sistemy.
     
     Args:
-        pipeline: экземпляр RAG pipeline
+        pipeline: ekzempliar RAG pipeline
     """
     stats = pipeline.get_stats()
     
-    print(f"\n{'═'*60}")
-    print("📊 СТАТИСТИКА СИСТЕМЫ")
-    print(f"{'═'*60}")
+    print(f"\n{'='*60}")
+    print("STATISTIKA SISTEMY")
+    print(f"{'='*60}")
     
-    print("\n🗄️  Векторное хранилище:")
-    print(f"   Коллекция: {stats['vector_store']['name']}")
-    print(f"   Документов: {stats['vector_store']['count']}")
-    print(f"   Директория: {stats['vector_store']['persist_directory']}")
+    print("\nVektor'noe hranilishche:")
+    print(f"   Kolleciya: {stats['vector_store']['name']}")
+    print(f"   Dokumentov: {stats['vector_store']['count']}")
+    print(f"   Direktoriya: {stats['vector_store']['persist_directory']}")
     
-    print("\n💾 Кеш:")
-    print(f"   Записей: {stats['cache']['total_entries']}")
-    print(f"   Размер БД: {stats['cache']['db_size_mb']:.2f} MB")
+    print("\nKesh:")
+    print(f"   Zapisei: {stats['cache']['total_entries']}")
+    print(f"   Razmer BD: {stats['cache']['db_size_mb']:.2f} MB")
     if stats['cache']['oldest_entry']:
-        print(f"   Первая запись: {stats['cache']['oldest_entry']}")
+        print(f"   Pervaya zapise: {stats['cache']['oldest_entry']}")
     if stats['cache']['newest_entry']:
-        print(f"   Последняя запись: {stats['cache']['newest_entry']}")
+        print(f"   Poslednyaya zapise: {stats['cache']['newest_entry']}")
     
-    print(f"\n🤖 Модель: {stats['model']}")
-    print(f"🌐 Режим: {stats['mode']}")
-    print(f"{'═'*60}\n")
+    print(f"\nModel': {stats['model']}")
+    print(f"Rejim: {stats['mode']}")
+    print(f"{'='*60}\n")
 
 
 def main():
-    """Главная функция приложения."""
+    """Glavnaya funkciya prilozheniya."""
     print_banner()
     
-    # Проверка наличия API URL
+    # Proverka naliçiya API URL
     if not os.getenv("PROXI_API_URL"):
-        print("❌ Ошибка: переменная окружения PROXI_API_URL не установлена")
-        print("\nУстановите её следующим образом:")
+        print("Oshibka: peremennaya okruzheniya PROXI_API_URL ne ustanovlena")
+        print("\nUstanovite ee sleduyushim obrazom:")
         print("  Windows (PowerShell): $env:PROXI_API_URL='https://your-proxi-api-endpoint.com'")
         print("  Windows (CMD): set PROXI_API_URL=https://your-proxi-api-endpoint.com")
         print("  Linux/Mac: export PROXI_API_URL='https://your-proxi-api-endpoint.com'")
-        print("\nИли создайте файл .env в корне проекта с содержимым:")
+        print("\nIli sozdayte fayl .env v korne proekta s soderzhimym:")
         print("  PROXI_API_URL=https://your-proxi-api-endpoint.com")
-        print("\nОпционально (если требуется авторизация):")
+        print("\nOpcional'no (esli trebuetsya avtorizaciya):")
         print("  PROXI_API_KEY=your_api_key_here")
         sys.exit(1)
     
     try:
-        # Инициализация RAG pipeline
-        print("🚀 Инициализация системы...\n")
+        # Iнициализация RAG pipeline
+        print("Iнициализaciya sistemy...\n")
         
-        # Получение модели из окружения или используем default
+        # Poluchenie modeli iz okruzheniya ili ispol'zuem default
         model = os.getenv("PROXI_API_MODEL", "gpt-4o-mini")
         
         pipeline = RAGPipeline(
@@ -126,21 +132,21 @@ def main():
             data_file="data/docs.txt",
             model=model
         )
-        print("\n✅ Система готова к работе!\n")
+        print("\nSistema gotova k rabote!\n")
         
     except Exception as e:
-        print(f"❌ Ошибка инициализации: {e}")
+        print(f"Oshibka iнициализации: {e}")
         sys.exit(1)
     
-    # Основной цикл взаимодействия
+    # Osnovnoi tsikl vzaimodeistviya
     while True:
         try:
-            # Получение запроса от пользователя
-            user_input = input("💭 Ваш вопрос: ").strip()
+            # Poluchenie zaprosa ot pol'zovatelya
+            user_input = input("Vash vopros: ").strip()
             
-            # Обработка специальных команд
+            # Obrabotka special'nykh komand
             if user_input.lower() in ['exit', 'quit', 'q']:
-                print("\n👋 До свидания!")
+                print("\nDo svidaniya!")
                 break
             
             if user_input.lower() == 'stats':
@@ -148,27 +154,27 @@ def main():
                 continue
             
             if user_input.lower() == 'clear':
-                confirm = input("⚠️  Вы уверены, что хотите очистить кеш? (yes/no): ")
-                if confirm.lower() in ['yes', 'y', 'да']:
+                confirm = input("Vy uveren', cto xotite ochistit' kesh? (yes/no): ")
+                if confirm.lower() in ['yes', 'y', 'da']:
                     pipeline.cache.clear()
-                    print("✅ Кеш очищен")
+                    print("Kesh ochishchen")
                 continue
             
             if not user_input:
-                print("⚠️  Пожалуйста, введите вопрос\n")
+                print("Prosim, vvedite vopros\n")
                 continue
             
-            # Обработка запроса через RAG pipeline
+            # Obrabotka zaprosa cherez RAG pipeline
             result = pipeline.query(user_input)
             
-            # Вывод результата
+            # Vyvod rezul'tata
             print_response(result)
             
         except KeyboardInterrupt:
-            print("\n\n👋 Прервано пользователем. До свидания!")
+            print("\n\nPrervano pol'zovatelem. Do svidaniya!")
             break
         except Exception as e:
-            print(f"\n❌ Ошибка: {e}\n")
+            print(f"\nOshibka: {e}\n")
 
 
 if __name__ == "__main__":
