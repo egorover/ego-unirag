@@ -66,11 +66,14 @@ env/
 rag_cache.db
 api_rag_cache.db
 test_cache.db
+gigachat_rag_cache.db
+proxy_rag_cache.db
 
 # ChromaDB
-chroma_db/
-assistant_api/chroma_db/
-assistant_giga/chroma_db/
+chroma_db
+assistant_api/chroma_db
+assistant_giga/chroma_db
+assistant_proxy_api/chroma_db
 *.chroma
 
 # ==========================================
