@@ -258,25 +258,51 @@ python rag_pipeline.py
 
 ## Оценка качества
 
-Проект включает модуль оценки качества RAG-системы через **RAGAS**:
+Проект включает модуль оценки качества RAG-системы через **RAGAS**.
+
+### Запуск оценки через ProxiAPI (РЕКОМЕНДУЕТСЯ):
 
 ```bash
-cd assistant_api
+cd assistant_proxy_api
 python evaluate_ragas.py
 ```
 
+### Требования для оценки:
+
+| Переменная | Описание | Обязательно |
+|------------|----------|-------------|
+| `PROXI_API_URL` | URL ProxiAPI для RAG | ✅ Да |
+| `PROXI_API_KEY` | API ключ ProxiAPI | ⚠️ Опционально |
+| `OPENAI_API_KEY` | API ключ OpenAI для RAGAS метрик | ✅ Да |
+
+**ВАЖНО:** RAGAS internally использует OpenAI API для вычисления метрик оценки, поэтому даже при работе RAG через ProxiAPI требуется `OPENAI_API_KEY`.
+
 ### Метрики:
 
-| Метрика | Описание |
-|---------|----------|
-| **Faithfulness** | Соответствие ответа предоставленному контексту |
-| **Context Precision** | Качество извлечённого контекста |
+| Метрика | Описание | Диапазон |
+|---------|----------|----------|
+| **Faithfulness** | Соответствие ответа предоставленному контексту | 0.0 - 1.0 |
+| **Context Precision** | Качество извлечённого контекста | 0.0 - 1.0 |
+
+### Настройка для оценки:
+
+```bash
+# В файле .env добавьте:
+PROXI_API_URL=https://api.proxyapi.ru/openai/v1
+PROXI_API_KEY=your_proxi_api_key
+OPENAI_API_KEY=your_openai_api_key  # Требуется для RAGAS
+```
 
 ### Подготовка датасета:
 
+Файл `evaluate_ragas.py` содержит список тестовых вопросов. Для кастомной оценки отредактируйте константу `EVALUATION_QUESTIONS`:
+
 ```python
-from datasets import Dataset
-# Создание датасета с полями: question, answer, contexts, ground_truth
+EVALUATION_QUESTIONS = [
+    "Вопрос 1?",
+    "Вопрос 2?",
+    # ... добавьте ваши вопросы
+]
 ```
 
 ---
@@ -303,17 +329,18 @@ Ego-UniRAG/
 │   ├── rag_pipeline.py           # Основной RAG pipeline
 │   ├── vector_store.py           # Векторное хранилище
 │   ├── cache.py                  # Система кэширования
-│   ├── evaluate_ragas.py         # Оценка через RAGAS
+│   ├── evaluate_ragas.py         # Оценка через RAGAS (устарело)
 │   ├── test.txt                  # Тестовый файл
 │   └── data/
 │       └── docs.txt              # Документы для RAG
 │
-├── assistant_proxy_api/          # ProxiAPI режим (РФ)
+├── assistant_proxy_api/          # ProxiAPI режим (РЕКОМЕНДУЕТСЯ)
 │   ├── app.py                    # Консольный интерфейс
 │   ├── rag_pipeline.py           # Основной RAG pipeline
 │   ├── vector_store.py           # Векторное хранилище
 │   ├── cache.py                  # Система кэширования
 │   ├── proxy_client.py           # Клиент ProxiAPI
+│   ├── evaluate_ragas.py         # Оценка через RAGAS
 │   └── data/
 │       └── docs.txt              # Документы для RAG
 │

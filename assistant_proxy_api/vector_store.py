@@ -208,7 +208,7 @@ class VectorStore:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Файл {file_path} не найден")
         
-        # Чтение файла
+        # Чтение файла с явным указанием кодировки UTF-8
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
         
