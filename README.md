@@ -271,18 +271,30 @@ python evaluate_ragas.py
 
 | Переменная | Описание | Обязательно |
 |------------|----------|-------------|
-| `PROXI_API_URL` | URL ProxiAPI для RAG | ✅ Да |
+| `PROXI_API_URL` | URL ProxiAPI для RAG pipeline | ✅ Да |
 | `PROXI_API_KEY` | API ключ ProxiAPI | ⚠️ Опционально |
 | `OPENAI_API_KEY` | API ключ OpenAI для RAGAS метрик | ✅ Да |
 
-**ВАЖНО:** RAGAS internally использует OpenAI API для вычисления метрик оценки, поэтому даже при работе RAG через ProxiAPI требуется `OPENAI_API_KEY`.
+**ВАЖНОЕ ПРИМЕЧАНИЕ:**  
+RAGAS internally использует OpenAI API для вычисления метрик оценки (Faithfulness, Context Precision).  
+Даже если RAG pipeline работает через ProxiAPI, метрики RAGAS требуют `OPENAI_API_KEY` для своей работы.
 
-### Метрики:
+Это ограничение самой библиотеки RAGAS v0.4+, которая использует OpenAI модели для оценки качества ответов.
+
+### Альтернативы без OpenAI API:
+
+Если у вас нет доступа к OpenAI API, рассмотрите альтернативные методы оценки:
+
+1. **Ручная проверка** - качественная оценка ответов экспертом
+2. **Простые метрики** - BLEU, ROUGE, BERTScore (не требуют LLM)
+3. **Кастомная оценка** - написать свою оценку через ProxiAPI
+
+### Метрики RAGAS:
 
 | Метрика | Описание | Диапазон |
 |---------|----------|----------|
 | **Faithfulness** | Соответствие ответа предоставленному контексту | 0.0 - 1.0 |
-| **Context Precision** | Качество извлечённого контекста | 0.0 - 1.0 |
+| **Context Precision** | Качество извлечённого контекста для ответа | 0.0 - 1.0 |
 
 ### Настройка для оценки:
 
@@ -290,7 +302,7 @@ python evaluate_ragas.py
 # В файле .env добавьте:
 PROXI_API_URL=https://api.proxyapi.ru/openai/v1
 PROXI_API_KEY=your_proxi_api_key
-OPENAI_API_KEY=your_openai_api_key  # Требуется для RAGAS
+OPENAI_API_KEY=your_openai_api_key  # Требуется для RAGAS метрик
 ```
 
 ### Подготовка датасета:
