@@ -13,6 +13,7 @@
 *.crt
 credentials.json
 secrets.json
+*.audit.md
 
 # ==========================================
 # Python
