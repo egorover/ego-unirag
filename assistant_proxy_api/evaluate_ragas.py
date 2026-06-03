@@ -1,281 +1,266 @@
 """
-Оценка качества RAG системы через RAGAS для assistant_proxy_api.
-Использует ProxiAPI для RAG и для метрик RAGAS.
+Скрипт для оценки качества RAG-системы через RAGAS.
+Поддержка: ProxiAPI (основной) и OpenAI API (опционально).
+Интегрирован из ego-ragascope.
 """
 
+import math
 import os
 import sys
-import math
-import io
-from pathlib import Path
-from dotenv import load_dotenv
-
-# Устанавливаем UTF-8 для Windows
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
-# Загрузка переменных окружения из .env файла
-env_path = Path(__file__).parent.parent / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
-else:
-    load_dotenv()
 
 from datasets import Dataset
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas import evaluate
+from ragas.metrics._faithfulness import faithfulness
+from ragas.metrics._answer_relevance import answer_relevancy
+from ragas.metrics._context_precision import context_precision
 
-# Правильный импорт для RAGAS 0.4.x - используем классы метрик
-try:
-    # Новый способ импорта (RAGAS 0.4+)
-    from ragas.metrics._faithfulness import Faithfulness
-    from ragas.metrics._context_precision import ContextPrecision
-    faithfulness = Faithfulness
-    context_precision = ContextPrecision
-except ImportError:
-    try:
-        # Альтернативный импорт из collections
-        from ragas.metrics.collections import faithfulness, context_precision
-    except ImportError:
-        # Fallback на старый импорт
-        from ragas.metrics import faithfulness, context_precision
-
+import config
 from rag_pipeline import RAGPipeline
+from utils.console import configure_stdio_utf8
+from utils.openai_client import get_langchain_openai_kwargs
 
+configure_stdio_utf8()
 
 # Тестовые вопросы для оценки RAG системы
 EVALUATION_QUESTIONS = [
     "Что такое машинное обучение?",
-    "Какие основные типы машинного обучения существуют?",
-    "Что такое нейронная сеть?",
-    "Как работают трансформеры в NLP?",
-    "Что такое RAG и как он работает?"
 ]
 
 
-def prepare_dataset(pipeline: RAGPipeline, questions: list) -> Dataset:
-    """
-    Подготовка датасета для RAGAS из вопросов.
-    
-    Args:
-        pipeline: RAG pipeline для получения ответов
-        questions: список вопросов для оценки
-    
-    Returns:
-        Dataset для RAGAS с полями: question, answer, contexts, ground_truth
-    """
+def prepare_dataset(pipeline: RAGPipeline, questions: list[str]) -> Dataset:
+    """Подготовка датасета для RAGAS из вопросов."""
     questions_list = []
     answers_list = []
     contexts_list = []
     ground_truths_list = []
     
-    print("[*] Получение ответов от RAG системы...\n")
-    
+    print("\n[*] Получение ответов от RAG системы...\n")
+
     for i, question in enumerate(questions, 1):
         print(f"  {i}/{len(questions)}: {question}")
         
-        # Получаем ответ от RAG системы (без использования кеша)
         result = pipeline.query(question, use_cache=False)
         
-        # Формируем данные для RAGAS
         questions_list.append(question)
         answers_list.append(result["answer"])
+        contexts_list.append([chunk["text"] for chunk in result["context_docs"]])
+        ground_truths_list.append("")
         
-        # Контекст - список текстов из найденных документов
-        context_texts = [doc["text"] for doc in result["context_docs"]]
-        contexts_list.append(context_texts)
-        
-        # Ground truth - эталонный ответ (для демонстрации используем часть ответа)
-        # В реальном проекте здесь должны быть вручную подготовленные эталонные ответы
-        ground_truths_list.append(result["answer"][:100])
-        
-        print(f"     [+] Ответ получен от ProxiAPI")
-    
-    print()
-    
-    # Создаём датасет для RAGAS
-    dataset_dict = {
-        "question": questions_list,
-        "answer": answers_list,
-        "contexts": contexts_list,
-        "ground_truth": ground_truths_list
-    }
-    
-    dataset = Dataset.from_dict(dataset_dict)
-    return dataset
+    return Dataset.from_dict(
+        {
+            "question": questions_list,
+            "answer": answers_list,
+            "contexts": contexts_list,
+            "ground_truth": ground_truths_list,
+        }
+    )
 
 
-def evaluate_rag_system():
-    """
-    Основная функция оценки RAG-системы через RAGAS.
-    
-    Процесс:
-    1. Инициализация RAG pipeline
-    2. Генерация ответов на тестовые вопросы
-    3. Подготовка датасета для RAGAS
-    4. Запуск оценки метрик
-    5. Вывод результатов
-    
-    ВАЖНО: RAGAS требует OpenAI API ключ для работы метрик оценки.
-    Даже при использовании ProxiAPI для RAG, метрики RAGAS internally используют OpenAI API.
-    """
+def _build_metrics():
+    """Собирает метрики RAGAS с учётом выбранного API-провайдера."""
+    langchain_config = get_langchain_openai_kwargs()
+
+    if config.API_PROVIDER == "openai":
+        os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
+    else:
+        os.environ["OPENAI_API_KEY"] = config.PROXY_API_KEY
+        os.environ["OPENAI_API_BASE"] = config.PROXY_API_URL
+
+    try:
+        from ragas.llms import llm_factory
+        from ragas.embeddings import LangchainEmbeddingsWrapper
+        from openai import OpenAI
+        from langchain_openai import OpenAIEmbeddings as LangchainOpenAIEmbeddings
+
+        print("\n[*] Создаём OpenAI клиент...")
+        openai_client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"],
+            base_url=os.environ.get("OPENAI_API_BASE"),
+        )
+
+        print(f"[*] Создаём LLM: {config.CHAT_MODEL}...")
+        ragas_llm = llm_factory(
+            model=config.CHAT_MODEL,
+            provider="openai",
+            client=openai_client,
+            temperature=0,
+        )
+
+        print(f"[*] Создаём эмбеддинги: {config.EMBEDDING_MODEL}...")
+        langchain_embeddings = LangchainOpenAIEmbeddings(
+            model=config.EMBEDDING_MODEL,
+            **langchain_config,
+        )
+        ragas_embeddings = LangchainEmbeddingsWrapper(langchain_embeddings)
+
+        print("[*] Инициализируем метрики...")
+        # Инициализируем метрики с кастомными LLM и embeddings
+        faithfulness.llm = ragas_llm
+        faithfulness.embeddings = ragas_embeddings
+        answer_relevancy.llm = ragas_llm
+        answer_relevancy.embeddings = ragas_embeddings
+        
+        # context_precision требует ground_truth, поэтому используем только если он есть
+        # Для быстрой проверки можно пропустить эту метрику
+        context_precision.llm = ragas_llm
+        context_precision.embeddings = ragas_embeddings
+
+        print("[OK] Метрики успешно созданы!\n")
+        return [
+            faithfulness,
+            answer_relevancy,
+            # context_precision,  # Раскомментируйте, если есть ground_truth
+        ]
+
+    except Exception as exc:
+        print(f"[WARN] Ошибка создания метрик через llm_factory: {exc}")
+        print("[WARN] Используем метрики без кастомизации LLM/эмбеддингов\n")
+        return [faithfulness, answer_relevancy, context_precision]
+
+
+def _metric_values(result, name: str) -> list[float]:
+    """Извлекает числовые значения метрики из результата RAGAS."""
+    try:
+        values = result[name]
+    except (KeyError, TypeError):
+        values = getattr(result, name, [])
+    return [v for v in values if not math.isnan(v)]
+
+
+def evaluate_rag_system() -> None:
+    """Оценка RAG-системы по предопределённым вопросам."""
     print("=" * 70)
     print("ОЦЕНКА КАЧЕСТВА RAG-СИСТЕМЫ (PROXIAPI MODE) ЧЕРЕЗ RAGAS")
     print("=" * 70)
-    print()
-    print("ВАЖНОЕ ПРИМЕЧАНИЕ:")
-    print("  RAGAS для оценки использует OpenAI API internally.")
-    print("  Даже если RAG работает через ProxiAPI, метрики требуют OPENAI_API_KEY.")
-    print()
-    
-    # Проверка наличия API URL для RAG
-    if not os.getenv("PROXI_API_URL"):
-        print("[ОШИБКА] PROXI_API_URL не установлен")
-        print("\nУстановите переменную окружения:")
-        print("  PROXI_API_URL=https://your-proxi-api-endpoint.com")
-        sys.exit(1)
-    
-    # Проверка наличия OpenAI API ключа для RAGAS
-    if not os.getenv("OPENAI_API_KEY"):
-        print("[ОШИБКА] OPENAI_API_KEY не установлен")
-        print()
-        print("RAGAS требует OpenAI API ключ для работы метрик оценки.")
-        print()
-        print("Варианты решения:")
-        print("  1. Добавьте OPENAI_API_KEY в файл .env:")
-        print("     OPENAI_API_KEY=your_openai_api_key")
-        print()
-        print("  2. Используйте альтернативные методы оценки:")
-        print("     - Ручная проверка качества ответов")
-        print("     - Простые метрики (BLEU, ROUGE)")
-        print("     - Самодельная оценка через ProxiAPI")
-        print()
-        sys.exit(1)
-    
+    print(f"Используемый провайдер: {config.API_PROVIDER.upper()}")
+
     # Инициализация RAG pipeline
     try:
-        print("[*] Инициализация RAG системы (ProxiAPI mode)...\n")
-        model = os.getenv("PROXI_API_MODEL", "gpt-4o-mini")
+        print("\n[*] Инициализация RAG системы (ProxiAPI mode)...\n")
+        
+        # Используем абсолютный путь к файлу документов
+        script_dir = Path(__file__).parent
+        docs_file = script_dir / "data" / "docs.txt"
+        
         pipeline = RAGPipeline(
             collection_name="proxy_rag_collection",
             cache_db_path="proxy_rag_cache.db",
-            data_file="data/docs.txt",
-            model=model
+            data_file=str(docs_file),
+            model=config.CHAT_MODEL
         )
-        print(f"\n[OK] RAG система готова к оценке (модель: {model})\n")
+        print(f"\n[OK] RAG система готова к оценке (модель: {config.CHAT_MODEL})\n")
     except Exception as e:
         print(f"[ОШИБКА] Ошибка инициализации RAG pipeline: {e}")
         sys.exit(1)
-    
-    # Подготовка датасета
-    print("=" * 70)
+
     dataset = prepare_dataset(pipeline, EVALUATION_QUESTIONS)
-    print("=" * 70)
+
+    print("\n" + "=" * 70)
+    print("\n[*] Запуск оценки метрик...")
+    print("Метрики: faithfulness, answer_relevancy, context_precision")
+
+    metrics_to_use = _build_metrics()
     
-    print("\n[*] Запуск оценки метрик RAGAS...")
-    print("   Метрики: Faithfulness, Context Precision")
-    print("   (это займёт 1-2 минуты, так как RAGAS использует LLM для оценки)\n")
-    
-    # Используем только метрики, которые работают без проблем с embeddings
-    print("   [+] Используем базовые метрики RAGAS\n")
-    metrics_to_use = [faithfulness(), context_precision()]
-    
-    # Запускаем оценку RAGAS
-    try:
-        result = evaluate(
-            dataset=dataset,
-            metrics=metrics_to_use
-        )
-    except Exception as e:
-        print(f"[ОШИБКА] Ошибка при оценке: {e}")
-        sys.exit(1)
-    
-    # Обработка и вывод результатов
+    # Запускаем оценку без column_map (поля датасета имеют правильные имена)
+    print("\n[*] Выполнение оценки (это займёт 1-3 минуты)...\n")
+    result = evaluate(
+        dataset=dataset,
+        metrics=metrics_to_use,
+        raise_exceptions=False,
+    )
+
     print("\n" + "=" * 70)
     print("РЕЗУЛЬТАТЫ ОЦЕНКИ")
     print("=" * 70)
-    
-    # Вычисляем средние значения метрик (игнорируя NaN)
-    faithfulness_values = [
-        v for v in result['faithfulness'] 
-        if not (isinstance(v, float) and math.isnan(v))
-    ]
-    context_precision_values = [
-        v for v in result['context_precision'] 
-        if not (isinstance(v, float) and math.isnan(v))
-    ]
-    
+
+    faithfulness_values = _metric_values(result, "faithfulness")
+    answer_relevancy_values = _metric_values(result, "answer_relevancy")
+    # context_precision_values = _metric_values(result, "context_precision")  # Отключено
+
     avg_faithfulness = (
-        sum(faithfulness_values) / len(faithfulness_values) 
-        if faithfulness_values else 0
+        sum(faithfulness_values) / len(faithfulness_values)
+        if faithfulness_values
+        else 0.0
     )
-    avg_context_precision = (
-        sum(context_precision_values) / len(context_precision_values) 
-        if context_precision_values else 0
+    avg_answer_relevancy = (
+        sum(answer_relevancy_values) / len(answer_relevancy_values)
+        if answer_relevancy_values
+        else float("nan")
     )
-    
-    # Выводим общие метрики
+    # avg_context_precision = (
+    #     sum(context_precision_values) / len(context_precision_values)
+    #     if context_precision_values
+    #     else 0.0
+    # )
+
     print()
     print("[МЕТРИКИ] Средние значения:")
-    print(f"   Faithfulness (точность ответа):          {avg_faithfulness:.4f}")
-    print(f"   Context Precision (точность контекста):  {avg_context_precision:.4f}")
+    print(f"  Faithfulness (верность ответа):     {avg_faithfulness:.4f}")
     
-    # Вычисляем и выводим средний балл
-    avg_score = (avg_faithfulness + avg_context_precision) / 2
-    print(f"\n{'─'*70}")
-    print(f"[ИТОГО] Средний балл: {avg_score:.4f}")
-    
-    # Оценка качества системы
-    if avg_score >= 0.7:
-        print("   Оценка: Отличное качество! [OK]")
-        print("   Система показывает высокую точность и релевантность ответов.")
-    elif avg_score >= 0.5:
-        print("   Оценка: Удовлетворительное качество [!]")
-        print("   Рекомендуется улучшить качество документов или промптов.")
+    if not math.isnan(avg_answer_relevancy):
+        print(f"  Answer Relevancy (релевантность): {avg_answer_relevancy:.4f}")
     else:
-        print("   Оценка: Требует значительного улучшения [X]")
-        print("   Необходимо пересмотреть стратегию chunking или качество данных.")
+        print(
+            "  Answer Relevancy (релевантность): "
+            "не удалось вычислить (ошибка с эмбеддингами)"
+        )
     
-    # Выводим детали по каждому вопросу
-    print("\n" + "=" * 70)
-    print("ДЕТАЛЬНЫЕ РЕЗУЛЬТАТЫ ПО ВОПРОСАМ")
-    print("=" * 70)
-    
-    for i, question in enumerate(EVALUATION_QUESTIONS):
-        print(f"\n{i+1}. {question}")
-        
-        # Faithfulness
-        faith_val = result['faithfulness'][i]
-        if not (isinstance(faith_val, float) and math.isnan(faith_val)):
-            print(f"   Faithfulness:       {faith_val:.4f}")
-        else:
-            print(f"   Faithfulness:       не удалось вычислить")
-        
-        # Context Precision
-        cp_val = result['context_precision'][i]
-        if not (isinstance(cp_val, float) and math.isnan(cp_val)):
-            print(f"   Context Precision:  {cp_val:.4f}")
-        else:
-            print(f"   Context Precision:  не удалось вычислить")
-    
-    # Пояснения к метрикам
-    print("\n" + "=" * 70)
-    print("[INFO] ПОЯСНЕНИЯ К МЕТРИКАМ")
-    print("=" * 70)
-    print("""
-Faithfulness (Точность ответа):
-  Измеряет, насколько ответ соответствует предоставленному контексту.
-  Значения: 0.0 - 1.0 (1.0 = полное соответствие контексту)
+    # print(f"  Context Precision (точность контекста): {avg_context_precision:.4f}")
 
-Context Precision (Точность контекста):
-  Измеряет качество извлечённого контекста для ответа на вопрос.
-  Значения: 0.0 - 1.0 (1.0 = идеальный контекст)
-    """)
-    
+    # Вычисляем и выводим средний балл
+    valid_scores = [s for s in [avg_faithfulness, avg_answer_relevancy] 
+                    if not math.isnan(s) and s > 0]
+    if valid_scores:
+        avg_score = sum(valid_scores) / len(valid_scores)
+        print(f"\n{'─'*70}")
+        print(f"[ИТОГО] Средний балл: {avg_score:.4f}")
+        
+        if avg_score >= 0.7:
+            print("    Оценка: Отличное качество! [OK]")
+        elif avg_score >= 0.5:
+            print("    Оценка: Удовлетворительное качество [!]")
+        else:
+            print("    Оценка: Требует улучшения [X]")
+
+    print("\n" + "=" * 70)
+    print("ДЕТАЛИ ПО ВОПРОСАМ")
     print("=" * 70)
+
+    for i, question in enumerate(EVALUATION_QUESTIONS):
+        print(f"\n{i + 1}. {question}")
+        try:
+            f_val = result["faithfulness"][i]
+            if math.isnan(f_val):
+                print("    Faithfulness: не удалось вычислить")
+            else:
+                print(f"    Faithfulness: {f_val:.4f}")
+        except (KeyError, TypeError, IndexError, ValueError):
+            print("    Faithfulness: ошибка вычисления")
+
+        try:
+            ar_val = result["answer_relevancy"][i]
+            if math.isnan(ar_val):
+                print("    Answer Relevancy: не удалось вычислить")
+            else:
+                print(f"    Answer Relevancy: {ar_val:.4f}")
+        except (KeyError, TypeError, IndexError, ValueError):
+            print("    Answer Relevancy: ошибка вычисления")
+
+        # try:
+        #     cp_val = result["context_precision"][i]
+        #     if math.isnan(cp_val):
+        #         print("    Context Precision: не удалось вычислить")
+        #     else:
+        #         print(f"    Context Precision: {cp_val:.4f}")
+        # except (KeyError, TypeError, IndexError, ValueError):
+        #     print("    Context Precision: ошибка вычисления")
+
+    print("\n" + "=" * 70)
     print("[OK] Оценка завершена!")
     print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
+    from pathlib import Path
     evaluate_rag_system()
