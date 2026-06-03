@@ -29,6 +29,15 @@ EVALUATION_QUESTIONS = [
     "Какие преимущества использования векторных баз данных?",
 ]
 
+# Эталонные ответы для метрики context_precision
+GROUND_TRUTH_ANSWERS = {
+    "Что такое машинное обучение?": "Машинное обучение — это область искусственного интеллекта, которая изучает методы обучения систем на основе данных. Алгоритмы машинного обучения позволяют компьютерам автоматически улучшать свою работу на основе опыта, не требуя явного программирования.",
+
+    "Что такое RAG и как он работает?": "RAG (Retrieval-Augmented Generation) — это архитектура, которая комбинирует извлечение информации и генерацию текста. Система сначала извлекает релевантные документы из базы знаний, затем использует их как контекст для генерации точного ответа на вопрос.",
+    
+    "Какие преимущества использования векторных баз данных?": "Векторные базы данных обеспечивают эффективный семантический поиск, позволяя находить похожие документы по смыслу, а не только по ключевым словам. Они поддерживают работу с эмбеддингами, обеспечивают быстрый поиск по схожести и масштабируются для больших объёмов данных.",
+}
+
 
 def prepare_dataset(pipeline: RAGPipeline, questions: list[str]) -> Dataset:
     """Подготовка датасета для RAGAS из вопросов."""
@@ -47,8 +56,8 @@ def prepare_dataset(pipeline: RAGPipeline, questions: list[str]) -> Dataset:
         questions_list.append(question)
         answers_list.append(result["answer"])
         contexts_list.append([chunk["text"] for chunk in result["context_docs"]])
-        ground_truths_list.append("")
-        
+        ground_truths_list.append(GROUND_TRUTH_ANSWERS.get(question, ""))
+
     return Dataset.from_dict(
         {
             "question": questions_list,
@@ -102,9 +111,6 @@ def _build_metrics():
         faithfulness.embeddings = ragas_embeddings
         answer_relevancy.llm = ragas_llm
         answer_relevancy.embeddings = ragas_embeddings
-        
-        # context_precision требует ground_truth, поэтому используем только если он есть
-        # Для быстрой проверки можно пропустить эту метрику
         context_precision.llm = ragas_llm
         context_precision.embeddings = ragas_embeddings
 
@@ -112,7 +118,7 @@ def _build_metrics():
         return [
             faithfulness,
             answer_relevancy,
-            # context_precision,  # Раскомментируйте, если есть ground_truth
+            context_precision,
         ]
 
     except Exception as exc:
@@ -178,7 +184,7 @@ def evaluate_rag_system() -> None:
 
     faithfulness_values = _metric_values(result, "faithfulness")
     answer_relevancy_values = _metric_values(result, "answer_relevancy")
-    # context_precision_values = _metric_values(result, "context_precision")  # Отключено
+    context_precision_values = _metric_values(result, "context_precision")
 
     avg_faithfulness = (
         sum(faithfulness_values) / len(faithfulness_values)
@@ -190,28 +196,27 @@ def evaluate_rag_system() -> None:
         if answer_relevancy_values
         else float("nan")
     )
-    # avg_context_precision = (
-    #     sum(context_precision_values) / len(context_precision_values)
-    #     if context_precision_values
-    #     else 0.0
-    # )
+    avg_context_precision = (
+        sum(context_precision_values) / len(context_precision_values)
+        if context_precision_values
+        else 0.0
+    )
 
     print()
     print("[МЕТРИКИ] Средние значения:")
-    print(f"  Faithfulness (верность ответа):     {avg_faithfulness:.4f}")
+    print(f"  Faithfulness (верность ответа):       {avg_faithfulness:.4f}")
     
     if not math.isnan(avg_answer_relevancy):
-        print(f"  Answer Relevancy (релевантность): {avg_answer_relevancy:.4f}")
+        print(f"  Answer Relevancy (релевантность):   {avg_answer_relevancy:.4f}")
     else:
         print(
             "  Answer Relevancy (релевантность): "
             "не удалось вычислить (ошибка с эмбеддингами)"
         )
+    print(f"  Context Precision (точность контекста): {avg_context_precision:.4f}")
     
-    # print(f"  Context Precision (точность контекста): {avg_context_precision:.4f}")
-
     # Вычисляем и выводим средний балл
-    valid_scores = [s for s in [avg_faithfulness, avg_answer_relevancy] 
+    valid_scores = [s for s in [avg_faithfulness, avg_answer_relevancy, avg_context_precision] 
                     if not math.isnan(s) and s > 0]
     if valid_scores:
         avg_score = sum(valid_scores) / len(valid_scores)
@@ -249,14 +254,14 @@ def evaluate_rag_system() -> None:
         except (KeyError, TypeError, IndexError, ValueError):
             print("    Answer Relevancy: ошибка вычисления")
 
-        # try:
-        #     cp_val = result["context_precision"][i]
-        #     if math.isnan(cp_val):
-        #         print("    Context Precision: не удалось вычислить")
-        #     else:
-        #         print(f"    Context Precision: {cp_val:.4f}")
-        # except (KeyError, TypeError, IndexError, ValueError):
-        #     print("    Context Precision: ошибка вычисления")
+        try:
+            cp_val = result["context_precision"][i]
+            if math.isnan(cp_val):
+                print("    Context Precision: не удалось вычислить")
+            else:
+                print(f"    Context Precision: {cp_val:.4f}")
+        except (KeyError, TypeError, IndexError, ValueError):
+            print("    Context Precision: ошибка вычисления")
 
     print("\n" + "=" * 70)
     print("[OK] Оценка завершена!")
