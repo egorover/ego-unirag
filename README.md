@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml/badge.svg)](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-20%20passed-success)](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/egorover/ego-unirag/actions/workflows/security.yml/badge.svg)](https://github.com/egorover/ego-unirag/actions/workflows/security.yml)
 
 ## Описание проекта
 
