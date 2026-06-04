@@ -2,9 +2,8 @@
 
 > **Важно:** Данный проект является форком репозитория [MrGAN12009/prompt-5_8](https://github.com) и развивается как самостоятельное решение под кодовым именем **Ego-UniRAG**.
 
-[![CI](https://github.com/egorover/ego-ragascope/actions/workflows/ci.yml/badge.svg)](https://github.com/egorover/ego-ragascope/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-9%20passed-success)](https://github.com/egorover/ego-ragascope/actions/workflows/ci.yml)
-[![Security Scan](https://img.shields.io/badge/security-scan%20ok-blue)](https://github.com/egorover/ego-ragascope/actions/workflows/ci.yml)
+[![CI](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml/badge.svg)](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-20%20passed-success)](https://github.com/egorover/ego-unirag/actions/workflows/ci.yml)
 
 ## Описание проекта
 
