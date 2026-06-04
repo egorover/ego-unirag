@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: '0 0 * * 0'  # Еженедельно в воскресенье
 
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+
 jobs:
   security-scan:
     runs-on: ubuntu-latest
