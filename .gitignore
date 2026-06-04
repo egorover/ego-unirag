@@ -15,7 +15,6 @@ credentials.json
 secrets.json
 *SECURITY*
 *.audit.md
-*TESTS*
 
 # ==========================================
 # Python
@@ -93,8 +92,6 @@ data/*.md
 # Тестовые файлы
 # ==========================================
 test.txt
-*_test.py
-tests/
 coverage/
 .pytest_cache/
 .coverage

@@ -1,0 +1,32 @@
+name: CI Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Устанавливаем pytest для запуска тестов
+        pip install pytest pytest-mock
+
+    - name: Run Tests
+      env:
+        # Передаем секреты из настроек репозитория в переменные окружения теста
+        PROXI_API_KEY: ${{ secrets.PROXI_API_KEY }}
+        GIGACHAT_AUTH_KEY: ${{ secrets.GIGACHAT_AUTH_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        # Запускаем тесты через pytest
+        pytest tests/ -v --tb=short
