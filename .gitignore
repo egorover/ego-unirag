@@ -13,7 +13,7 @@
 *.crt
 credentials.json
 secrets.json
-*SECURITY*
+SECURITY-*.md
 *.audit.md
 
 # ==========================================
