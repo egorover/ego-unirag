@@ -49,6 +49,7 @@ venv/
 ENV/
 env/
 .venv.bin/
+venv_py311/
 
 # IDE
 .vscode/

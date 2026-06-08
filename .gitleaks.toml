@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore virtual environment history"
+paths = [
+    '''(?i)venv_py311/'''
+]
